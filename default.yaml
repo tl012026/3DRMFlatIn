@@ -1,0 +1,76 @@
+# Role:
+#   Default runtime config for the flatten pipeline.
+#   Holds paths, thresholds, and stage switches — not algorithm logic.
+#
+# Inputs:
+#   Loaded by scripts/run_pipeline.py and passed into flatten.pipeline
+#
+# Outputs:
+#   A config object/dict consumed as variable `config`
+#
+# Notes:
+#   - CLI args (input_dir / image_paths / output_dir / device) override these keys.
+#   - Checkpoints live under /scratch/yl13095/3DRMFlatIn/ (not the git tree).
+#   - Key names match project/contracts.py and stage constructors.
+
+# --- shared roots ---
+# checkpoint_dir: large .pt files (SAM2 already here; YOLO / VGGT go here too)
+# output_dir: pipeline artifacts
+checkpoint_dir: /scratch/yl13095/3DRMFlatIn
+input_dir: null
+image_paths: null
+output_dir: /scratch/yl13095/3DRMFlatIn/outputs
+
+# --- shared runtime ---
+# device: "cuda" | "cpu"
+device: cuda
+
+# --- stage switches (pipeline may skip a stage when false) ---
+stages:
+  run_detector: true
+  run_segmenter: true
+  run_reconstruct: true
+  run_flatten: true
+
+# --- detectors.person_detector ---
+# PersonDetector(weights_path, conf_thres, device, person_class_id)
+# -> DetBoxes: bboxes (xyxy), scores
+detector:
+  weights_path: /scratch/yl13095/3DRMFlatIn/yolo11s.pt
+  conf_thres: 0.25
+  person_class_id: 0          # COCO person = 0 for Ultralytics YOLO
+
+# --- detectors.person_segmenter ---
+# PersonSegmenter(checkpoint_path, device, mask_threshold)
+# prompts from detector bboxes -> SegMasks: masks, mask_scores, seg_meta
+# model_cfg is the Hydra name inside the sam2 package, not a filesystem path
+segmenter:
+  checkpoint_path: /scratch/yl13095/3DRMFlatIn/sam2.1_hiera_large.pt
+  model_cfg: configs/sam2.1/sam2.1_hiera_l.yaml
+  mask_threshold: 0.0         # logits > 0; official SAM2 default
+  multimask_output: false     # box prompt is unambiguous; one mask per box
+
+# --- reconstruct.vggt_reconstructor ---
+# VGGTReconstructor(checkpoint_path, image_resolution, device, use_mask_filter)
+# -> ReconResult: poses, intrinsics, depth_maps, point_cloud, conf_maps, recon_meta
+reconstruct:
+  checkpoint_path: /scratch/yl13095/3DRMFlatIn/vggt_omega_1b_512.pt
+  image_resolution: 512
+  use_mask_filter: true       # keep human-region geometry using det_result.masks
+
+# --- flatten.human_flatten ---
+# HumanFlatten(flatten_resolution, method, seam_policy)
+# -> FlatResult: flat_map, uv_coords, flat_mesh, texture, flat_meta
+flatten:
+  flatten_resolution: 1024
+  method: null                # placeholder strategy name; set when implemented
+  seam_policy: null           # how to handle cuts / discontinuities
+
+# --- artifact dump (pipeline side-effects under output_dir) ---
+save:
+  det_boxes: true
+  masks: true
+  depth_maps: true
+  point_cloud: true
+  flat_map: true
+  texture: true
