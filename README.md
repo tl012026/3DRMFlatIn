@@ -17,6 +17,6 @@ If humans are not flattened, then `C / B` should be no less than a threshold.
 - **VGGT-Omega-1B-512** (`vggt_omega_1b_512.pt`, resolution 512): official camera + depth model. Do not use the 256 text-alignment checkpoint.
 
 ## Choice of threshold
-- **YOLO `conf_thres`**: `0.25`. Raise it if extra people / false boxes pollute the mask.
-- **SAM2 `mask_threshold`**: `0.0` (official default: logits > 0).
-- **Flatten score `C / B`**: start at `0.05`. Below this, treat the human as flattened onto the background. Tune on a small labeled set; `A` / `B` use median depth so outliers hurt less. `B` is a dilated-mask ring, not the whole image.
+- **YOLO `conf_thres`**: . Raise it if extra people / false boxes pollute the mask.
+- **SAM2 `mask_threshold`**:  (official default: logits > 0).
+- **Flatten score `C / B`**: start at . Below this, treat the human as flattened onto the background. Tune on a small labeled set; `A` / `B` use median depth so outliers hurt less. `B` is a dilated-mask ring, not the whole image.
