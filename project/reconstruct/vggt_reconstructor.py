@@ -73,14 +73,12 @@ class VGGTReconstructor:
         predictions = self.model(images)
         poses, intrinsics = encoding_to_camera(predictions["pose_enc"], predictions["images"].shape[-2:])
         depth_maps = predictions["depth"]
-        point_cloud = predictions["point_cloud"]
         conf_maps = predictions["conf_maps"]
         recon_meta = predictions["recon_meta"]
         return {
             "poses": poses,
             "intrinsics": intrinsics,
             "depth_maps": depth_maps,
-            "point_cloud": point_cloud,
             "conf_maps": conf_maps,
             "recon_meta": recon_meta
         }
