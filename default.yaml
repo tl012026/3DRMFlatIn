@@ -61,7 +61,7 @@ reconstruct:
 
 # --- flatten.human_flatten ---
 # HumanFlatten(score_thres, ring_width, merge_instances)
-# -> FlatResult: A, B, C, scores, is_flattened, valid (no 3D-to-2D unwrap)
+# -> FlatResult: A, B, C, scores, is_flattened, valid
 flatten:
   score_thres: 0.05           # C/B below this => person flattened onto background
   ring_width: 16              # dilation radius in VGGT depth pixels

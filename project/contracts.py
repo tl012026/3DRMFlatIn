@@ -134,7 +134,7 @@ class ReconResult:
 
 @dataclass
 class FlatResult:
-    """Per-view flatten verdict from HumanFlatten (depth A/B/C, not a UV map)."""
+    """Per-view flatten verdict from HumanFlatten."""
 
     A: List[Any]
     """Median depth inside the person mask."""

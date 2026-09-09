@@ -1,8 +1,7 @@
 """
 Judge whether VGGT-Omega flattened a person onto the background.
 
-Uses reconstruct depth maps (full image, not mask-cropped) plus SAM2 person
-masks. No 3D-to-2D unfolding: A/B/C are computed on the 2D depth grid.
+Uses reconstruct depth maps plus SAM2 person masks.
 
 A: median depth inside the person mask
 B: median depth in a dilated ring just outside the mask

@@ -1,7 +1,6 @@
 """
 Subpackage role:
     Multi-view geometric reconstruction via VGGT-Omega.
-    Flatten reads per-view depth_maps (full image); it does not unwrap 3D.
 
 Inputs:
     - images / image_paths
