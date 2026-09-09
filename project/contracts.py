@@ -24,9 +24,9 @@ Variables (cross-stage contract):
         - recon_result: ReconResult bundle for pipeline
 
     Stage: flatten
-        - point_cloud, depth_maps, poses, intrinsics, masks, images
-        - flat_map, uv_coords, flat_mesh, texture
-        - flat_meta
+        - depth_maps from reconstruct (full image), masks from detectors
+        - A, B, C, scores, is_flattened, valid
+        - human_masks, surround_masks, flat_meta
         - flat_result: FlatResult bundle for pipeline
 
     Stage: pipeline
@@ -110,16 +110,16 @@ class DetResult:
 
 @dataclass
 class ReconResult:
-    """Stage-level bundle from reconstruct for pipeline / flatten."""
+    """Stage-level bundle from reconstruct. Flatten consumes depth_maps only."""
 
     poses: Any
     """Camera extrinsics / decoded poses."""
 
     depth_maps: Any
-    """Per-view depth."""
+    """Per-view full-image depth. Required by flatten (do not mask-crop)."""
 
     point_cloud: Any
-    """Fused or per-view 3D points (xyz [, rgb])."""
+    """Optional 3D points from VGGT; not used by flatten."""
 
     intrinsics: Optional[Any] = None
     conf_maps: Optional[Any] = None
@@ -134,14 +134,32 @@ class ReconResult:
 
 @dataclass
 class FlatResult:
-    """Stage-level bundle from flatten for pipeline."""
+    """Per-view flatten verdict from HumanFlatten (depth A/B/C, not a UV map)."""
 
-    flat_map: Any
-    """2D unfolded surface map."""
+    A: List[Any]
+    """Median depth inside the person mask."""
 
-    uv_coords: Optional[Any] = None
-    flat_mesh: Optional[Any] = None
-    texture: Optional[Any] = None
+    B: List[Any]
+    """Median depth in the dilated ring around the mask."""
+
+    C: List[Any]
+    """|A - B|."""
+
+    scores: List[Any]
+    """C / B. Flattened when this is below score_thres."""
+
+    is_flattened: List[bool]
+    """True iff the view is valid and score < score_thres."""
+
+    valid: List[bool]
+    """False when mask/ring/depth is empty so A/B/C cannot be measured."""
+
+    human_masks: Optional[List[Any]] = None
+    """Person masks resized to the depth grid (HxW, OR-merged if configured)."""
+
+    surround_masks: Optional[List[Any]] = None
+    """Ring just outside the person mask, same HxW as depth."""
+
     flat_meta: Dict[str, Any] = field(default_factory=dict)
 
 

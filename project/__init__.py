@@ -1,6 +1,7 @@
 """
 Package role:
-    Top-level package for the human 3D reconstruction + surface flattening project.
+    Top-level package: detect VGGT-Omega human-flatten artifacts
+    (YOLO + SAM2 masks, VGGT depth, A/B/C score).
     Exposes the orchestration entry only; algorithm details live in subpackages.
 
 Inputs:

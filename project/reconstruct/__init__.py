@@ -1,15 +1,14 @@
 """
 Subpackage role:
-    Multi-view geometric reconstruction for the human region.
-    Wraps VGGT-Omega (or similar) to produce poses, depth, and 3D points.
+    Multi-view geometric reconstruction via VGGT-Omega.
+    Flatten reads per-view depth_maps (full image); it does not unwrap 3D.
 
 Inputs:
     - images / image_paths
-    - optional masks from detectors (to focus on human region)
     - reconstructor config (checkpoint, resolution, device)
 
 Outputs:
-    - recon_result for pipeline and flatten stages
+    - recon_result for pipeline; flatten uses depth_maps only
 
 Variables / symbols (contract):
     - VGGTReconstructor: main reconstruction wrapper (vggt_reconstructor.py)

@@ -3,7 +3,7 @@
 #   Holds paths, thresholds, and stage switches — not algorithm logic.
 #
 # Inputs:
-#   Loaded by scripts/run_pipeline.py and passed into flatten.pipeline
+#   Loaded by pipeline.py and passed into project.pipeline
 #
 # Outputs:
 #   A config object/dict consumed as variable `config`
@@ -53,24 +53,24 @@ segmenter:
 # --- reconstruct.vggt_reconstructor ---
 # VGGTReconstructor(checkpoint_path, image_resolution, device, use_mask_filter)
 # -> ReconResult: poses, intrinsics, depth_maps, point_cloud, conf_maps, recon_meta
+# flatten needs the full depth image (human + surround). Do not crop to the mask.
 reconstruct:
   checkpoint_path: /scratch/yl13095/3DRMFlatIn/vggt_omega_1b_512.pt
   image_resolution: 512
-  use_mask_filter: true       # keep human-region geometry using det_result.masks
+  use_mask_filter: false      # keep full-image depth so surround ring B exists
 
 # --- flatten.human_flatten ---
-# HumanFlatten(flatten_resolution, method, seam_policy)
-# -> FlatResult: flat_map, uv_coords, flat_mesh, texture, flat_meta
+# HumanFlatten(score_thres, ring_width, merge_instances)
+# -> FlatResult: A, B, C, scores, is_flattened, valid (no 3D-to-2D unwrap)
 flatten:
-  flatten_resolution: 1024
-  method: null                # placeholder strategy name; set when implemented
-  seam_policy: null           # how to handle cuts / discontinuities
+  score_thres: 0.05           # C/B below this => person flattened onto background
+  ring_width: 16              # dilation radius in VGGT depth pixels
+  merge_instances: true       # OR-merge people in a view, then score once
 
 # --- artifact dump (pipeline side-effects under output_dir) ---
 save:
   det_boxes: true
   masks: true
   depth_maps: true
-  point_cloud: true
-  flat_map: true
-  texture: true
+  point_cloud: false          # reconstruct may still produce it; flatten does not use it
+  flatten_scores: true

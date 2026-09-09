@@ -1,8 +1,8 @@
 """
 Module role:
     Run VGGT-Omega feed-forward reconstruction on multi-view images.
-    Optionally restrict / filter geometry with person masks.
-    Unify coordinates so flatten can consume a consistent 3D representation.
+    Produces per-view depth maps that flatten scores against person masks.
+    Keep full-image depth (do not mask-crop): flatten needs the surround ring.
 
 Inputs:
     - images: preprocessed multi-view tensor (e.g. [S,3,H,W])
@@ -11,7 +11,7 @@ Inputs:
     - image_resolution: e.g. 512
     - device: "cuda" | "cpu"
     - masks: optional person masks from detectors (align to image size)
-    - use_mask_filter: whether to keep only human-region points/depth
+    - use_mask_filter: if true, drop non-human depth (breaks flatten surround B)
 
 Outputs:
     - poses: camera extrinsics / pose encodings decoded to cameras
@@ -68,7 +68,7 @@ class VGGTReconstructor:
             self.model, self.image_resolution, self.device,
             self.use_mask_filter, images, masks
         """
-        # TODO: forward VGGT-Omega; decode poses; apply mask filter; return
+        # TODO: forward VGGT-Omega; decode poses; return full-image depth_maps
         # What is the sequence of outputs from the model?
         predictions = self.model(images)
         poses, intrinsics = encoding_to_camera(predictions["pose_enc"], predictions["images"].shape[-2:])

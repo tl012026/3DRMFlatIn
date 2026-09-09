@@ -1,20 +1,20 @@
 """
 Subpackage role:
-    Map reconstructed human surface geometry into a 2D flattened representation
-    (unfolded map / UV / texture atlas style output).
+    Detect VGGT-Omega human-flatten artifacts on per-view depth maps.
+    Compare person-mask depth (A) vs a surrounding ring (B); score = |A-B|/B.
 
 Inputs:
-    - recon_result (point cloud / depth / poses) from reconstruct
-    - optional masks / images for coloring the flat map
-    - flatten config (method switches, resolution, seam policy)
+    - depth_maps from reconstruct (full image depth, not mask-cropped)
+    - person masks from detectors (resized to the depth grid)
+    - flatten config (score_thres, ring_width, merge_instances)
 
 Outputs:
-    - flat_result consumed by pipeline for saving / visualization
+    - flat_result: A, B, C, scores, is_flattened, valid, aligned masks
 
 Variables / symbols (contract):
-    - HumanFlatten: main flattening module (human_flatten.py)
+    - HumanFlatten: depth-based flatten detector (human_flatten.py)
 """
 
-# Export after implementation, e.g.:
-# from .human_flatten import HumanFlatten
-# __all__ = ["HumanFlatten"]
+from .human_flatten import HumanFlatten
+
+__all__ = ["HumanFlatten"]

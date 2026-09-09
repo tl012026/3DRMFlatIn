@@ -1,7 +1,7 @@
 """
 Subpackage role:
     Person / body region detection and segmentation.
-    Produces 2D localization cues for reconstruction and flattening.
+    Produces person boxes and pixel masks for the flatten depth score.
 
 Inputs:
     - images or image_paths

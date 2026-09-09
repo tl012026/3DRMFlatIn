@@ -3,25 +3,24 @@ Module role:
     Framework / orchestrator for the full pipeline.
     Loads config, calls detectors -> reconstruct -> flatten in order,
     passes intermediate results, and writes final outputs.
-    Does NOT implement detection, reconstruction, or flattening algorithms.
+    Does NOT implement detection, reconstruction, or flatten-score algorithms.
 
 Inputs:
-    - config: runtime settings from configs/ (paths, thresholds, switches)
+    - config: runtime settings (paths, thresholds, switches)
     - image_paths: list of input image file paths (multi-view)
     - output_dir: directory for intermediate and final artifacts
 
 Outputs:
-    - pipeline_result: aggregated result dict / object containing
-      detection, reconstruction, and flattening products
-    - side-effect files under output_dir (masks, depth, meshes, flat maps)
+    - pipeline_result: detection, reconstruction, and flatten verdicts
+    - side-effect files under output_dir (boxes, masks, depth, scores)
 
 Variables (contract):
     - config: full config object / dict
     - image_paths: List[str]
     - output_dir: str | Path
     - det_result: output from detectors (bboxes, masks, scores)
-    - recon_result: output from reconstruct (poses, depth, point cloud)
-    - flat_result: output from flatten (2D unfolded map / UV / texture)
+    - recon_result: output from reconstruct (depth_maps, poses, ...)
+    - flat_result: output from flatten (A, B, C, scores, is_flattened)
     - pipeline_result: final bundled return value
 """
 
@@ -42,6 +41,7 @@ def run_pipeline(config, image_paths, output_dir):
     """
     # TODO: load config fields needed by each stage
     # TODO: call detectors -> reconstruct -> flatten
+    # flatten.run(depth_maps=recon_result.depth_maps, masks=det_result.masks)
     # TODO: save artifacts to output_dir
     # TODO: return pipeline_result
     pass

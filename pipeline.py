@@ -2,7 +2,7 @@
 Script role:
     CLI / entry script to launch the pipeline framework.
     Parses args, loads configs/default.yaml (or a user config),
-    and calls flatten.pipeline.run_pipeline.
+    and calls project.pipeline.run_pipeline.
     No algorithm logic here.
 
 Inputs:
