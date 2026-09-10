@@ -29,11 +29,14 @@ Variables (contract):
     - poses, intrinsics, depth_maps, point_cloud, conf_maps, recon_meta
 """
 
+from pathlib import Path
+
 import torch
 
 from vggt_omega.models import VGGTOmega
 from vggt_omega.utils.load_fn import load_and_preprocess_images
 from vggt_omega.utils.pose_enc import encoding_to_camera
+
 
 class VGGTReconstructor:
     """
@@ -48,13 +51,15 @@ class VGGTReconstructor:
     """
 
     def __init__(self, checkpoint_path, image_resolution, device, use_mask_filter):
-        # TODO: store config vars; build self.model; load checkpoint
+        # store config vars; build self.model; load checkpoint
         self.checkpoint_path = checkpoint_path
         self.image_resolution = image_resolution
         self.device = device
         self.use_mask_filter = use_mask_filter
 
-        self.model = VGGTOmega().to("cude").eval
+        self.model = VGGTOmega().to(self.device)
+        self.model.load_state_dict(torch.load(self.checkpoint_path, map_location="cpu"))
+        self.model.eval()
 
     def run(self, images, masks=None):
         """
@@ -68,18 +73,24 @@ class VGGTReconstructor:
             self.model, self.image_resolution, self.device,
             self.use_mask_filter, images, masks
         """
-        # TODO: forward VGGT-Omega; decode poses; return full-image depth_maps
+        # forward VGGT-Omega; decode poses; return full-image depth_maps
         # What is the sequence of outputs from the model?
-        predictions = self.model(images)
+        if isinstance(images, (list, tuple)) and images and isinstance(images[0], (str, Path)):
+            images = load_and_preprocess_images(
+                [str(p) for p in images],
+                image_resolution=self.image_resolution,
+            )
+        images = images.to(self.device)
+        with torch.inference_mode():
+            predictions = self.model(images)
         poses, intrinsics = encoding_to_camera(predictions["pose_enc"], predictions["images"].shape[-2:])
         depth_maps = predictions["depth"]
-        conf_maps = predictions["conf_maps"]
-        recon_meta = predictions["recon_meta"]
+        conf_maps = predictions["depth_conf"]
+        recon_meta = {"image_resolution": self.image_resolution}
         return {
             "poses": poses,
             "intrinsics": intrinsics,
             "depth_maps": depth_maps,
             "conf_maps": conf_maps,
-            "recon_meta": recon_meta
+            "recon_meta": recon_meta,
         }
-        pass

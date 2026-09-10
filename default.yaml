@@ -60,12 +60,11 @@ reconstruct:
   use_mask_filter: false      # keep full-image depth so surround ring B exists
 
 # --- flatten.human_flatten ---
-# HumanFlatten(score_thres, ring_width, merge_instances)
-# -> FlatResult: A, B, C, scores, is_flattened, valid
+# HumanFlatten(score_thres, ring_width)
+# -> people[view][person]: A, B, C, score, is_flattened; view_is_flattened = any person
 flatten:
-  score_thres: 0.05           # C/B below this => person flattened onto background
+  score_thres: 0.05           # C/B below this => that person flattened onto background
   ring_width: 16              # dilation radius in VGGT depth pixels
-  merge_instances: true       # OR-merge people in a view, then score once
 
 # --- artifact dump (pipeline side-effects under output_dir) ---
 save:

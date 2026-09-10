@@ -13,7 +13,7 @@ If humans are not flattened, then `C / B` should be no less than a threshold.
 
 ## Choice of model
 - **YOLO11s** (`yolo11s.pt`): COCO person class `0`. Enough for boxes; SAM2 does the masks.
-- **SAM 2.1 Large** (`sam2.1_hiera_large.pt` + `configs/sam2.1/sam2.1_hiera_l.yaml`): box-prompted masks. One mask per box (`multimask_output: false`). Merge instances with OR when a view has several people.
+- **SAM 2.1 Large** (`sam2.1_hiera_large.pt` + `configs/sam2.1/sam2.1_hiera_l.yaml`): box-prompted masks. One mask per box (`multimask_output: false`). Each person is scored; a view is flattened if any person is.
 - **VGGT-Omega-1B-512** (`vggt_omega_1b_512.pt`, resolution 512): official camera + depth model. Do not use the 256 text-alignment checkpoint.
 
 ## Choice of threshold

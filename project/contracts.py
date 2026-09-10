@@ -25,8 +25,8 @@ Variables (cross-stage contract):
 
     Stage: flatten
         - depth_maps from reconstruct (full image), masks from detectors
-        - A, B, C, scores, is_flattened, valid
-        - human_masks, surround_masks, flat_meta
+        - people[view][person]: A, B, C, score, is_flattened
+        - view_is_flattened, human_masks, surround_masks, flat_meta
         - flat_result: FlatResult bundle for pipeline
 
     Stage: pipeline
@@ -134,31 +134,19 @@ class ReconResult:
 
 @dataclass
 class FlatResult:
-    """Per-view flatten verdict from HumanFlatten."""
+    """Flatten verdicts: one record per person, plus a per-view flag."""
 
-    A: List[Any]
-    """Median depth inside the person mask."""
+    people: List[List[Any]]
+    """people[view][person] = {A, B, C, score, valid, is_flattened}."""
 
-    B: List[Any]
-    """Median depth in the dilated ring around the mask."""
-
-    C: List[Any]
-    """|A - B|."""
-
-    scores: List[Any]
-    """C / B. Flattened when this is below score_thres."""
-
-    is_flattened: List[bool]
-    """True iff the view is valid and score < score_thres."""
-
-    valid: List[bool]
-    """False when mask/ring/depth is empty so A/B/C cannot be measured."""
+    view_is_flattened: List[bool]
+    """True if any person in that view is flattened."""
 
     human_masks: Optional[List[Any]] = None
-    """Person masks resized to the depth grid (HxW, OR-merged if configured)."""
+    """Per-view [N,H,W] person masks on the depth grid."""
 
     surround_masks: Optional[List[Any]] = None
-    """Ring just outside the person mask, same HxW as depth."""
+    """Per-view [N,H,W] rings on the depth grid."""
 
     flat_meta: Dict[str, Any] = field(default_factory=dict)
 

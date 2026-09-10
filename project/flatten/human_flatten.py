@@ -1,8 +1,10 @@
 """
 Judge whether VGGT-Omega flattened a person onto the background.
 
-A: median depth inside the person mask
-B: median depth in a dilated ring just outside the mask
+Each SAM2 instance is scored. A view is flattened if any person is.
+
+A: median depth inside that person's mask
+B: median depth in a ring around that mask (other people excluded)
 C: |A - B|
 score: C / B; flattened if score < score_thres
 """
@@ -20,15 +22,14 @@ def _numpy(x):
 
 
 class HumanFlatten:
-    def __init__(self, score_thres, ring_width, merge_instances=True):
+    def __init__(self, score_thres, ring_width):
         self.score_thres = float(score_thres)
         self.ring_width = int(ring_width)
-        self.merge_instances = bool(merge_instances)
 
     def run(self, depth_maps, masks):
         """
         depth_maps: [S,H,W] (or HxW)
-        masks: list of per-view [N,H,W] (SAM2); resized to depth if needed
+        masks: list of per-view [N,H,W]
         """
         depth = np.squeeze(_numpy(depth_maps))
         if depth.ndim == 2:
@@ -38,63 +39,74 @@ class HumanFlatten:
         if len(masks) != len(depth):
             raise ValueError(f"masks views {len(masks)} != depth views {len(depth)}")
 
-        A, B, C, scores, is_flat, valid = [], [], [], [], [], []
+        people, view_flat = [], []
         human_masks, surround_masks = [], []
 
         for depth_i, inst in zip(depth, masks):
-            person = self._person_mask(inst, depth_i.shape)
-            ring = self._surround_ring(person)
-            a = self._median(depth_i, person)
-            b = self._median(depth_i, ring)
-            c = abs(a - b) if np.isfinite(a) and np.isfinite(b) else float("nan")
-            score = c / b if np.isfinite(c) and b > 0 else float("nan")
-            ok = np.isfinite(score)
-
-            A.append(a)
-            B.append(b)
-            C.append(c)
-            scores.append(score)
-            valid.append(bool(ok))
-            is_flat.append(bool(ok and score < self.score_thres))
-            human_masks.append(person.astype(np.uint8))
-            surround_masks.append(ring.astype(np.uint8))
+            inst = self._instances(inst, depth_i.shape)
+            union = np.zeros(depth_i.shape, dtype=bool)
+            for person in inst:
+                union |= person
+            recs, person_maps, ring_maps = [], [], []
+            for person in inst:
+                ring = self._surround_ring(person, union)
+                rec = self._score(depth_i, person, ring)
+                recs.append(rec)
+                person_maps.append(person.astype(np.uint8))
+                ring_maps.append(ring.astype(np.uint8))
+            people.append(recs)
+            view_flat.append(any(r["is_flattened"] for r in recs))
+            human_masks.append(np.stack(person_maps) if person_maps else np.zeros((0, *depth_i.shape), np.uint8))
+            surround_masks.append(np.stack(ring_maps) if ring_maps else np.zeros((0, *depth_i.shape), np.uint8))
 
         return {
-            "A": A,
-            "B": B,
-            "C": C,
-            "scores": scores,
-            "is_flattened": is_flat,
-            "valid": valid,
+            "people": people,
+            "view_is_flattened": view_flat,
             "human_masks": human_masks,
             "surround_masks": surround_masks,
             "flat_meta": {
                 "score_thres": self.score_thres,
                 "ring_width": self.ring_width,
-                "merge_instances": self.merge_instances,
             },
         }
 
-    def _person_mask(self, inst, hw):
+    def _score(self, depth, person, ring):
+        a = self._median(depth, person)
+        b = self._median(depth, ring)
+        c = abs(a - b) if np.isfinite(a) and np.isfinite(b) else float("nan")
+        score = c / b if np.isfinite(c) and b > 0 else float("nan")
+        ok = bool(np.isfinite(score))
+        return {
+            "A": a,
+            "B": b,
+            "C": c,
+            "score": score,
+            "valid": ok,
+            "is_flattened": bool(ok and score < self.score_thres),
+        }
+
+    def _instances(self, inst, hw):
         inst = _numpy(inst)
         if inst.size == 0:
-            return np.zeros(hw, dtype=bool)
+            return []
         if inst.ndim == 2:
             inst = inst[None]
-        person = np.any(inst > 0, axis=0) if self.merge_instances else inst[0] > 0
-        if person.shape != hw:
-            ys = (np.arange(hw[0]) * person.shape[0] / hw[0]).astype(np.int64)
-            xs = (np.arange(hw[1]) * person.shape[1] / hw[1]).astype(np.int64)
-            person = person[ys[:, None], xs[None, :]]
-        return person.astype(bool)
+        out = []
+        for m in inst:
+            if m.shape != hw:
+                ys = (np.arange(hw[0]) * m.shape[0] / hw[0]).astype(np.int64)
+                xs = (np.arange(hw[1]) * m.shape[1] / hw[1]).astype(np.int64)
+                m = m[ys[:, None], xs[None, :]]
+            out.append(m.astype(bool))
+        return out
 
-    def _surround_ring(self, person):
+    def _surround_ring(self, person, union):
         r = self.ring_width
         if r <= 0 or not np.any(person):
             return np.zeros_like(person, dtype=bool)
         yy, xx = np.ogrid[-r : r + 1, -r : r + 1]
         disk = xx * xx + yy * yy <= r * r
-        return binary_dilation(person, structure=disk) & ~person
+        return binary_dilation(person, structure=disk) & ~union
 
     @staticmethod
     def _median(depth, region):

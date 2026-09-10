@@ -24,6 +24,18 @@ Variables (contract):
     - pipeline_result: final bundled return value
 """
 
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import numpy as np
+
+from .detectors.person_detector import PersonDetector
+from .detectors.person_segmenter import PersonSegmenter
+from .flatten.human_flatten import HumanFlatten
+from .reconstruct.vggt_reconstructor import VGGTReconstructor
+
 
 def run_pipeline(config, image_paths, output_dir):
     """
@@ -39,9 +51,79 @@ def run_pipeline(config, image_paths, output_dir):
     Variables used inside (planned):
         det_result, recon_result, flat_result, pipeline_result
     """
-    # TODO: load config fields needed by each stage
-    # TODO: call detectors -> reconstruct -> flatten
+    device = config["device"]
+    dcfg, scfg = config["detector"], config["segmenter"]
+    rcfg, fcfg = config["reconstruct"], config["flatten"]
+
+    detector = PersonDetector(
+        dcfg["weights_path"], dcfg["conf_thres"], device, dcfg["person_class_id"]
+    )
+    segmenter = PersonSegmenter(
+        scfg["checkpoint_path"],
+        device,
+        scfg["mask_threshold"],
+        model_cfg=scfg["model_cfg"],
+        multimask_output=scfg["multimask_output"],
+    )
+    reconstructor = VGGTReconstructor(
+        rcfg["checkpoint_path"],
+        rcfg["image_resolution"],
+        device,
+        rcfg.get("use_mask_filter", False),
+    )
+    flatten = HumanFlatten(fcfg["score_thres"], fcfg["ring_width"])
+
+    # detectors -> reconstruct -> flatten
     # flatten.run(depth_maps=recon_result.depth_maps, masks=det_result.masks)
-    # TODO: save artifacts to output_dir
-    # TODO: return pipeline_result
-    pass
+    det_result = detector.predict(image_paths)
+    seg_result = segmenter.predict(image_paths, det_result)
+    recon_result = reconstructor.run(image_paths)
+    flat_result = flatten.run(recon_result["depth_maps"], seg_result["masks"])
+
+    # save artifacts to output_dir
+    _save(output_dir, config.get("save") or {}, det_result, seg_result, recon_result, flat_result)
+
+    pipeline_result = {
+        "det": det_result,
+        "seg": seg_result,
+        "recon": recon_result,
+        "flat": flat_result,
+        "image_paths": image_paths,
+        "output_dir": str(output_dir),
+    }
+    return pipeline_result
+
+
+def _save(output_dir, save, det, seg, recon, flat):
+    out = Path(output_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    if save.get("flatten_scores"):
+        payload = {k: _jsonable(flat[k]) for k in ("people", "view_is_flattened")}
+        (out / "flatten_scores.json").write_text(json.dumps(payload, indent=2))
+    if save.get("det_boxes"):
+        (out / "det_boxes.json").write_text(
+            json.dumps(
+                {"bboxes": _jsonable(det["bboxes"]), "scores": _jsonable(det["scores"])},
+                indent=2,
+            )
+        )
+    if save.get("masks"):
+        for i, m in enumerate(seg["masks"]):
+            np.save(out / f"mask_{i:03d}.npy", m)
+    if save.get("depth_maps"):
+        depth = recon["depth_maps"]
+        if hasattr(depth, "detach"):
+            depth = depth.detach().cpu().numpy()
+        np.save(out / "depth_maps.npy", depth)
+
+
+def _jsonable(x):
+    if isinstance(x, dict):
+        return {k: _jsonable(v) for k, v in x.items()}
+    if isinstance(x, (list, tuple)):
+        return [_jsonable(v) for v in x]
+    if hasattr(x, "tolist"):
+        return x.tolist()
+    if isinstance(x, (float, int, bool)) or x is None:
+        return x
+    return float(x)
