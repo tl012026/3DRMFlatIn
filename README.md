@@ -20,3 +20,33 @@ If humans are not flattened, then `C / B` should be no less than a threshold.
 - **YOLO `conf_thres`**: `0.25`. Raise it if extra people / false boxes pollute the mask.
 - **SAM2 `mask_threshold`**: `0.0` (official default: logits > 0).
 - **Flatten score `C / B`**: start at `0.05`. Below this, treat the human as flattened onto the background. Tune on a small labeled set; `A` / `B` use median depth so outliers hurt less. `B` is a dilated-mask ring, not the whole image.
+
+## Environment
+We run from a conda env with torch. This repo holds the code. Vendored `sam2`, `vggt-omega`, and `ultralytics` are added to `PYTHONPATH`, with `sam2` first. Weights and run outputs stay outside the git tree (`checkpoint_dir` in `default.yaml`). Pip cache and temp files go on scratch.
+
+```bash
+conda activate $ENV
+export TMPDIR=$SCRATCH/tmp
+export PIP_CACHE_DIR=$SCRATCH/.cache/pip
+python -m pip install einops safetensors iopath polars fiftyone
+
+export PYTHONPATH=$PWD/sam2:$PWD/vggt-omega:$PWD/ultralytics:$PWD
+```
+
+Place `sam2.1_hiera_large.pt` and `vggt_omega_1b_512.pt` in `checkpoint_dir`. `yolo11s.pt` is pulled there on first run if it is missing.
+
+## Dataset
+`--input_dir` is one VGGT multi-view batch, so each example needs its own folder. For COCO-2017 val (person only, up to 50 images), `prepare_coco.py` uses FiftyOne and writes:
+
+```
+images/coco/<index>/<file>.jpg
+```
+
+FiftyOne zoo and db go under a scratch `fiftyone` directory (see `prepare_coco.py`). Then one index is one job:
+
+```bash
+python prepare_coco.py
+sbatch run.sbatch 1
+```
+
+Other datasets follow the same layout: one folder per example, then `--input_dir` or `sbatch run.sbatch <index>`.
