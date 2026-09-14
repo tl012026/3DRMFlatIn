@@ -1,10 +1,10 @@
 ## Overview
-We first want to find instances where VGGT-Omega flattens objects onto the background. In this case, we focus on humans. After collecting multiple examples, we want to see if we can find correlations inside the model as to why objects are being flattened.
+Instances are first sought where VGGT-Omega flattens objects onto the background. Humans are the focus. After multiple examples are collected, correlations inside the model are examined to explain why objects are flattened.
 
 ## Method
-Three models are used: YOLO, SAM2, and VGGT-Omega. We first use YOLO to detect boxes labeled as person, and send those boxes to SAM2 as prompts, where pixel-wise human masks are produced. Then we run VGGT-Omega on the same views to get per-view depth. Person masks must be aligned to the VGGT image size before they are applied.
+Three models are used: YOLO, SAM2, and VGGT-Omega. Person boxes are first detected with YOLO and sent to SAM2 as prompts, from which pixel-wise human masks are produced. VGGT-Omega is then run on the same views to obtain per-view depth. Person masks must be aligned to the VGGT image size before they are applied.
 
-We can get:
+The following quantities are obtained:
 A. the depth of the human (pixels inside the mask)
 B. the depth of the surrounding area of the human (a ring just outside the mask)
 C. the depth difference between human and background, `|A − B|`
@@ -22,7 +22,7 @@ If humans are not flattened, then `C / B` should be no less than a threshold.
 - **Flatten score `C / B`**: start at `0.05`. Below this, treat the human as flattened onto the background. Tune on a small labeled set; `A` / `B` use median depth so outliers hurt less. `B` is a dilated-mask ring, not the whole image.
 
 ## Environment
-We run from a conda env with torch. This repo holds the code. Vendored `sam2`, `vggt-omega`, and `ultralytics` are added to `PYTHONPATH`, with `sam2` first. Weights and run outputs stay outside the git tree (`checkpoint_dir` in `default.yaml`). Pip cache and temp files go on scratch.
+The pipeline is run from a conda env with torch. This repo holds the code. Vendored `sam2`, `vggt-omega`, and `ultralytics` are added to `PYTHONPATH`, with `sam2` first. Weights and run outputs stay outside the git tree (`checkpoint_dir` in `default.yaml`). Pip cache and temp files go on scratch.
 
 ```bash
 conda activate $ENV
