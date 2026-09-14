@@ -12,6 +12,7 @@ Outputs:
     - masks: per-image [N,H,W] uint8 (N=0 when no box)
     - mask_scores: per-mask quality scores
     - seg_meta: model_cfg, mask_threshold
+    - vis images (save_mask_images): per-view PNG with person-pixel regions overlaid
 """
 
 from __future__ import annotations
@@ -21,9 +22,21 @@ from pathlib import Path
 
 import numpy as np
 import torch
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 from sam2.build_sam import build_sam2
 from sam2.sam2_image_predictor import SAM2ImagePredictor
+
+# Distinct colors so overlapping people stay separable in the mask overlay.
+_MASK_COLORS = [
+    (255, 0, 0),
+    (0, 255, 0),
+    (0, 128, 255),
+    (255, 255, 0),
+    (255, 0, 255),
+    (0, 255, 255),
+    (255, 128, 0),
+    (128, 0, 255),
+]
 
 
 class PersonSegmenter:
@@ -85,6 +98,67 @@ class PersonSegmenter:
                 "mask_threshold": self.mask_threshold,
             },
         }
+
+    def save_mask_images(self, images, masks, output_dir, mask_scores=None):
+        """
+        Overlay SAM2 person pixels on each view and write seg_mask_XXX.png.
+        Used to check whether the extracted region is actually a person.
+        """
+        out = Path(output_dir)
+        out.mkdir(parents=True, exist_ok=True)
+        image_list = self._as_image_list(images)
+        vis_paths = []
+        n = max(len(image_list), len(masks))
+        for i in range(n):
+            rgb = self._to_rgb_hwc(image_list[i] if i < len(image_list) else image_list[-1])
+            inst = masks[i] if i < len(masks) else np.zeros((0, *rgb.shape[:2]), dtype=np.uint8)
+            scores_i = None
+            if mask_scores is not None and i < len(mask_scores):
+                scores_i = mask_scores[i]
+            vis = self._draw_masks(rgb, inst, scores_i)
+            path = out / f"seg_mask_{i:03d}.png"
+            Image.fromarray(vis).save(path)
+            vis_paths.append(str(path))
+        return vis_paths
+
+    @staticmethod
+    def _draw_masks(rgb, inst, scores=None):
+        inst = np.asarray(inst)
+        if inst.size == 0:
+            inst = np.zeros((0, *rgb.shape[:2]), dtype=np.uint8)
+        elif inst.ndim == 2:
+            inst = inst[None]
+        vis = rgb.copy()
+        h, w = vis.shape[:2]
+        for k, mask in enumerate(inst):
+            m = np.asarray(mask)
+            if m.shape != (h, w):
+                m_img = Image.fromarray((m > 0).astype(np.uint8) * 255)
+                m = np.array(m_img.resize((w, h), Image.NEAREST))
+            sel = m > 0
+            if not np.any(sel):
+                continue
+            color = np.asarray(_MASK_COLORS[k % len(_MASK_COLORS)], dtype=np.float32)
+            vis[sel] = (vis[sel].astype(np.float32) * 0.45 + color * 0.55).astype(np.uint8)
+        im = Image.fromarray(vis)
+        draw = ImageDraw.Draw(im)
+        font = ImageFont.load_default()
+        if inst.shape[0] == 0:
+            draw.text((8, 8), "no person mask", fill=(255, 0, 0), font=font)
+            return np.array(im)
+        scores = np.asarray(scores, dtype=np.float32).reshape(-1) if scores is not None and len(scores) else None
+        y = 8
+        for k in range(inst.shape[0]):
+            color = _MASK_COLORS[k % len(_MASK_COLORS)]
+            score_txt = ""
+            if scores is not None and k < len(scores):
+                score_txt = f" {float(scores[k]):.2f}"
+            label = f"person {k}{score_txt}"
+            bbox = draw.textbbox((8, y), label, font=font)
+            draw.rectangle(bbox, fill=color)
+            draw.text((8, y), label, fill=(0, 0, 0), font=font)
+            y = bbox[3] + 4
+        return np.array(im)
 
     @staticmethod
     def _as_image_list(images):

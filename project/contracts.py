@@ -25,7 +25,7 @@ Variables (cross-stage contract):
 
     Stage: flatten
         - depth_maps from reconstruct (full image), masks from detectors
-        - people[view][person]: A, B, C, score, is_flattened
+        - people[view][person]: A, B, C, score, is_flattened, depth_human, depth_background
         - view_is_flattened, human_masks, surround_masks, flat_meta
         - flat_result: FlatResult bundle for pipeline
 
@@ -137,7 +137,7 @@ class FlatResult:
     """Flatten verdicts: one record per person, plus a per-view flag."""
 
     people: List[List[Any]]
-    """people[view][person] = {A, B, C, score, valid, is_flattened}."""
+    """people[view][person] = {A, B, C, score, valid, is_flattened, depth_human, depth_background}."""
 
     view_is_flattened: List[bool]
     """True if any person in that view is flattened."""

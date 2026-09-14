@@ -19,7 +19,7 @@
 checkpoint_dir: /scratch/yl13095/3DRMFlatIn
 input_dir: null
 image_paths: null
-output_dir: /scratch/yl13095/3DRMFlatIn/outputs
+output_dir: /home/yl13095/3DRMFlatIn_output
 
 # --- shared runtime ---
 # device: "cuda" | "cpu"
@@ -61,7 +61,8 @@ reconstruct:
 
 # --- flatten.human_flatten ---
 # HumanFlatten(score_thres, ring_width)
-# -> people[view][person]: A, B, C, score, is_flattened; view_is_flattened = any person
+# -> people[view][person]: A, B, C, score, is_flattened, depth_human, depth_background
+# view_is_flattened = any person
 flatten:
   score_thres: 0.05           # C/B below this => that person flattened onto background
   ring_width: 16              # dilation radius in VGGT depth pixels
@@ -69,7 +70,10 @@ flatten:
 # --- artifact dump (pipeline side-effects under output_dir) ---
 save:
   det_boxes: true
+  det_vis: true               # YOLO bbox overlay PNGs (det_bbox_XXX.png)
   masks: true
+  mask_vis: true              # SAM2 person-pixel overlay PNGs (seg_mask_XXX.png)
   depth_maps: true
   point_cloud: false          # reconstruct may still produce it; flatten does not use it
   flatten_scores: true
+  flatten_vis: true           # per-person depth_human vs depth_background + flatten_vis_XXX.png
